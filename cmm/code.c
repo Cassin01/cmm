@@ -84,12 +84,4 @@ void debug_print_code_h(cptr* c) {
                 mntbl[tmp->f].sym, tmp->l, tmp->a);
     }
 }
-void debug_print_code_t(cptr* c) {
-    code* tmp;
-
-    for(tmp=c->t; tmp != NULL; tmp = tmp->next){
-        printf("( %s, %4d, %4d )\n",
-                mntbl[tmp->f].sym, tmp->l, tmp->a);
-    }
-}
 // }}}

@@ -41,6 +41,7 @@ typedef struct Codeval {
 %token NUMBER
 %token IF THEN ELSE ENDIF
 %token WHILE DO
+%token FOR IN RANGE
 %token READ
 %token COLEQ
 %token GE GT LE LT NE EQ
@@ -274,6 +275,7 @@ st : WRITE E SEMI
     }
     | ifstmt
     | whilestmt
+    | forstmt
     | { addlist("block", BLOCK, 0, 0, 0); }
         body
     {
@@ -345,6 +347,59 @@ whilestmt : WHILE cond DO st
     }
     ;
 
+forstmt : FOR ID IN E RANGE E DO st
+    {
+        int label0, label1;
+        cptr *tmp;
+
+        label0 = makelabel();
+        label1 = makelabel();
+
+        // 初期化 ID := E {{{
+            list *id_tmp;
+            id_tmp = search_all($2.name);
+            if (id_tmp == NULL){
+                sem_error2("assignment");
+            }
+            if (id_tmp->kind != VARIABLE){
+                sem_error2("assignment2");
+            }
+            tmp = mergecode($4.code,
+                makecode(O_STO, level - id_tmp->l, id_tmp->a));
+            $$.val = 0;
+        // }}}
+
+        // while 制御文 {{{
+            tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+            // 条件式 ID < E {{{
+                tmp = mergecode(tmp,
+                    makecode(O_LOD, level - id_tmp->l, id_tmp->a));
+                tmp = mergecode(tmp, $6.code);
+                tmp = mergecode(tmp, makecode(O_OPR, 0, 10));
+            // }}}
+            tmp = mergecode(tmp, makecode(O_JPC, 0, label1));
+            tmp = mergecode(tmp, $8.code); // 文
+            // 更新式 ID := ID + 1 {{{
+                // ID + 1 {{
+                    tmp = mergecode(tmp,
+                        makecode(O_LOD, level - id_tmp->l, id_tmp->a));
+                    tmp = mergecode(tmp, makecode(O_LIT, 0, 1));
+                    tmp = mergecode(tmp, makecode(O_OPR, 0, 2));
+                // }}}
+                // ID := {{{
+                    tmp = mergecode(tmp,
+                        makecode(O_STO, level - id_tmp->l, id_tmp->a));
+                    $$.val = 0;
+                // }}}
+            // }}}
+            tmp = mergecode(tmp, makecode(O_JMP, 0, label0));
+            tmp = mergecode(tmp, makecode(O_LAB, 0, label1));
+            $$.code = tmp;
+            $$.val = 0;
+        // }}}
+    }
+    ;
+
 cond : E GT E
     {
       $$.code = mergecode(mergecode($1.code, $3.code),
@@ -405,32 +460,6 @@ T : T MULT F
     }
     | T POW F
     {
-// JMP  0  3
-// LAB  0  1
-// INT  0  3
-// LOD  0 -1
-// LIT  0  1
-// OPR  0  8
-// JPC  0  2
-// LOD  0 -2
-// RET  0  2
-// LAB  0  2
-// LOD  0 -2
-// LOD  0 -2
-// LOD  0 -1
-// LIT  0  1
-// OPR  0  3
-// CAL  0  1
-// OPR  0  4
-// RET  0  2
-// LAB  0  3
-// INT  0  3
-// LIT  0 10 # $1
-// LIT  0  3 # $3
-// CAL  0  1
-// CSP  0  1
-// CSP  0  2
-// OPR  0  0
         cptr *tmp;
         int label0, label1, label2;
 
