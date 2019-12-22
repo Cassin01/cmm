@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h> // Cassin
 
 #include "env.h"
 #include "code.h"
@@ -25,7 +26,6 @@ typedef struct Codeval {
 
 #define YYSTYPE codeval
 %}
-
 %token VAR
 %token MAIN
 %token ID
@@ -49,20 +49,20 @@ typedef struct Codeval {
 
 program : fdecls main {
         cptr *tmp;
-      int label0;
+        int label0;
 
-label0 = makelabel();
+        label0 = makelabel();
 
-tmp = makecode(O_JMP, 0, label0);
-      tmp = mergecode(tmp, $1.code);
-      tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
-      tmp = mergecode(tmp, makecode(O_INT, 0, $2.val + SYSTEM_AREA));
-      tmp = mergecode(tmp, $2.code);
-            tmp = mergecode(tmp, makecode(O_OPR, 0, 0));
+        tmp = makecode(O_JMP, 0, label0);
+        tmp = mergecode(tmp, $1.code);
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+        tmp = mergecode(tmp, makecode(O_INT, 0, $2.val + SYSTEM_AREA));
+        tmp = mergecode(tmp, $2.code);
+        tmp = mergecode(tmp, makecode(O_OPR, 0, 0));
 
-printcode(ofile, tmp);
+        printcode(ofile, tmp);
     }
-  ;
+    ;
 
 main : MAIN body {
         $$.code = $2.code;
@@ -114,7 +114,7 @@ fid : ID
     }
     ;
 
-params : params COMMA ID 
+params : params COMMA ID
     {
         if (search_block($3.name) == NULL){
             addlist($3.name, VARIABLE, 0, level, 0);
@@ -398,10 +398,81 @@ T : T MULT F
         $$.code = mergecode(mergecode($1.code, $3.code),
         makecode(O_OPR, 0, 4));
     }
-    | T DIV  F
+    | T DIV F
     {
         $$.code = mergecode(mergecode($1.code, $3.code),
         makecode(O_OPR, 0, 5));
+    }
+    | T POW F
+    {
+// JMP  0  3
+// LAB  0  1
+// INT  0  3
+// LOD  0 -1
+// LIT  0  1
+// OPR  0  8
+// JPC  0  2
+// LOD  0 -2
+// RET  0  2
+// LAB  0  2
+// LOD  0 -2
+// LOD  0 -2
+// LOD  0 -1
+// LIT  0  1
+// OPR  0  3
+// CAL  0  1
+// OPR  0  4
+// RET  0  2
+// LAB  0  3
+// INT  0  3
+// LIT  0 10 # $1
+// LIT  0  3 # $3
+// CAL  0  1
+// CSP  0  1
+// CSP  0  2
+// OPR  0  0
+        cptr *tmp;
+        int label0, label1, label2;
+
+        label0 = makelabel();
+        label1 = makelabel();
+        label2 = makelabel();
+
+        tmp = makecode(O_JPC, 0, label2);
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+        tmp = mergecode(tmp, makecode(O_INT, 0, 3));
+        tmp = mergecode(tmp, makecode(O_LOD, 0, -1));
+        tmp = mergecode(tmp, makecode(O_LIT, 0, 1));
+        tmp = mergecode(tmp, makecode(O_OPR, 0, 8));
+        tmp = mergecode(tmp, makecode(O_JPC, 0, label1));
+        tmp = mergecode(tmp, makecode(O_LOD, 0, -2));
+        tmp = mergecode(tmp, makecode(O_RET, 0, 2));
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label1));
+        tmp = mergecode(tmp, makecode(O_LOD, 0, -2));
+        tmp = mergecode(tmp, makecode(O_LOD, 0, -2));
+        tmp = mergecode(tmp, makecode(O_LOD, 0, -1));
+        tmp = mergecode(tmp, makecode(O_LIT, 0, 1));
+        tmp = mergecode(tmp, makecode(O_OPR, 0, 3));
+        tmp = mergecode(tmp, makecode(O_CAL, 0, label0));
+        tmp = mergecode(tmp, makecode(O_OPR, 0, 4));
+        tmp = mergecode(tmp, makecode(O_RET, 0, 2));
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label2));
+        tmp = mergecode(tmp, makecode(O_INT, 0, 3));
+        tmp = mergecode(tmp, makecode(O_INT, 0, 2));
+        tmp = mergecode(tmp, $1.code);
+        tmp = mergecode(tmp, $3.code);
+        $$.code = mergecode(tmp, makecode(O_CAL, 0, label0));
+        $$.val = 0;
+    }
+    | T MOD F
+    {
+        cptr *tmp;
+        tmp = mergecode($1.code, $3.code);
+        tmp = mergecode(tmp, $1.code);
+        tmp = mergecode(tmp, $3.code);
+        tmp = mergecode(tmp, makecode(O_OPR, 0, 5));
+        tmp = mergecode(tmp, makecode(O_OPR, 0, 4));
+        $$.code = mergecode(tmp, makecode(O_OPR, 0, 3));
     }
     | F
     {
@@ -415,7 +486,7 @@ F : ID
         list* tmpl;
 
         tmpl = search_all($1.name);
-        if (tmpl == NULL){
+        if (tmpl == NULL) {
             sem_error2("id");
         }
 
@@ -444,9 +515,7 @@ F : ID
         }
 
         $$.code = mergecode($3.code,
-        makecode(O_CAL,
-            level - tmpl->l,
-            tmpl->a));
+        makecode(O_CAL, level - tmpl->l, tmpl->a));
     }
     | NUMBER
     {
