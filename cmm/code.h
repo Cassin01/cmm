@@ -31,5 +31,9 @@ int makelabel();
 cptr* makecode(int f, int l, int a);
 cptr* mergecode(cptr* c1, cptr* c2);
 void  printcode(FILE* f, cptr* c);
+// Cassin {{{
+void debug_print_code_h(cptr* c);
+void debug_print_code_t(cptr* c);
+// }}}
 
 #endif
