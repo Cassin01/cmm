@@ -26,9 +26,11 @@
 "while"   { ECHO;  return WHILE; }
 "for"     { ECHO;  return FOR; }
 "do"      { ECHO;  return DO; }
+"goto"    { ECHO;  return GOTO; }
 "read"    { ECHO;  return READ; }
 "return"  { ECHO;  return RETURN; }
 ":="      { ECHO;  return COLEQ; }
+":"       { ECHO;  return COLON; }
 ">="      { ECHO;  return GE; }
 ">"       { ECHO;  return GT; }
 "<="      { ECHO;  return LE; }

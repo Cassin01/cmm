@@ -129,7 +129,8 @@ void vd_backpatch(int n_of_vars, int offset){
 void sem_error1(char* kind){
     fprintf(stderr,
             "this identifier has"
-            " been already declared(%d)!\n", kind);
+            " been already declared(%s)!\n", kind); // cassin
+            // " been already declared(%d)!\n", kind);
     exit(EXIT_FAILURE);
 }
 

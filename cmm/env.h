@@ -32,6 +32,6 @@ void sem_error2(char* kind);
 void sem_error3(char* s, int n1, int n2);
 
 
-enum KIND { VARIABLE, BLOCK, FUNC, CONSTANT };
+enum KIND { VARIABLE, BLOCK, FUNC, CONSTANT, LABEL };
 
 #endif

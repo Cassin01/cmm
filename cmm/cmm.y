@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // Cassin
 
 #include "env.h"
 #include "code.h"
@@ -42,10 +41,12 @@ typedef struct Codeval {
 %token IF THEN ELSE ENDIF
 %token WHILE DO
 %token FOR
+%token GOTO
 %token READ
 %token COLEQ
 %token GE GT LE LT NE EQ
 %token RETURN
+%token COLON
 %%
 
 program : fdecls main {
@@ -72,21 +73,21 @@ main : MAIN body {
     ;
 
 fdecls : fdecls fdecl {
-       $$.code = mergecode($1.code, $2.code);
+        $$.code = mergecode($1.code, $2.code);
     }
     | /* epsilon */ {
-      $$.code = NULL;
+        $$.code = NULL;
     }
-  ;
+    ;
 
 fdecl : fhead body {
-    cptr *tmp, *tmp2;
+        cptr *tmp, *tmp2;
 
-    tmp = makecode(O_LAB, 0, $1.val);
-    tmp2 = makecode(O_INT, 0, $2.val + SYSTEM_AREA);
+        tmp = makecode(O_LAB, 0, $1.val);
+        tmp2 = makecode(O_INT, 0, $2.val + SYSTEM_AREA);
 
-    $$.code = mergecode(mergecode(tmp, tmp2), $2.code);
-    delete_block();
+        $$.code = mergecode(mergecode(tmp, tmp2), $2.code);
+        delete_block();
     }
     ;
 
@@ -227,7 +228,7 @@ stmts : stmts st
     ;
 
 st : WRITE E SEMI
-   {
+    {
         $$.code = mergecode($2.code, makecode(O_CSP, 0, 1));
         $$.val = 0;
     }
@@ -276,12 +277,14 @@ st : WRITE E SEMI
     | ifstmt
     | whilestmt
     | forstmt
+    | labelstmt
+    | gostmt
     | { addlist("block", BLOCK, 0, 0, 0); }
         body
     {
-      $$.code = $2.code;
-      $$.val = $2.val;
-      delete_block();
+        $$.code = $2.code;
+        $$.val = $2.val;
+        delete_block();
     }
     | RETURN E SEMI
     {
@@ -356,24 +359,84 @@ forstmt : FOR st cond SEMI st DO st
         label1 = makelabel();
 
         tmp = $2.code;
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+        tmp = mergecode(tmp, $3.code); // 条件式
+        tmp = mergecode(tmp, makecode(O_JPC, 0, label1));
+        tmp = mergecode(tmp, $7.code); // 文
+        tmp = mergecode(tmp, $5.code); // 更新式
+        tmp = mergecode(tmp, makecode(O_JMP, 0, label0));
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label1));
+        $$.code = tmp;
 
-        // while 制御文 {{{
-            tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
-            tmp = mergecode(tmp, $3.code); // 条件式
-            tmp = mergecode(tmp, makecode(O_JPC, 0, label1));
-            tmp = mergecode(tmp, $7.code); // 文
-            tmp = mergecode(tmp, $5.code); // 更新式
-            tmp = mergecode(tmp, makecode(O_JMP, 0, label0));
-            tmp = mergecode(tmp, makecode(O_LAB, 0, label1));
-            $$.code = tmp;
-            $$.val = 0;
-        // }}}
+        $$.val = 0;
     }
     ;
 
+labelstmt : lhead st
+    {
+        cptr *tmp, *tmp2;
+
+        tmp = makecode(O_LAB, 0, $1.val);
+        tmp2 = makecode(O_INT, 0, $2.val + SYSTEM_AREA);
+
+        $$.code = mergecode(mergecode(tmp, tmp2), $2.code);
+        delete_block();
+
+    }
+    ;
+
+lhead : lid COLON
+    {
+        int label;
+        int i;
+        list *tmp;
+
+        label = makelabel();
+
+        // label 登録 {{{
+        tmp = gettail();
+        for(;tmp->kind != LABEL; tmp = tmp->prev){
+        }
+        tmp->a = label;
+        // }}}
+
+        $$.val = label;
+    }
+    ;
+
+lid : ID
+    {
+        if (search_all($1.name) == NULL){
+            addlist($1.name, LABEL, 0, level, 0);
+        }
+        else {
+            sem_error1("lid");
+        }
+        addlist("block", BLOCK, 0, 0, 0);
+    }
+    ;
+
+gostmt : GOTO ID SEMI
+    {
+        list* tmpl;
+
+        tmpl = search_all($2.name);
+        if (tmpl == NULL){
+            sem_error2("id as label");
+        }
+
+        if (tmpl->kind != LABEL){
+            sem_error2("id as label2");
+        }
+
+        $$.code = makecode(O_JMP, 0, tmpl->a);
+    }
+    ;
+
+
 cond : E GT E
     {
-      $$.code = mergecode(mergecode($1.code, $3.code),
+        $$.code = mergecode(mergecode($1.code, $3.code),
         makecode(O_OPR, 0, 12));
     }
     | E GE E
@@ -502,28 +565,28 @@ F : ID
         list* tmpl;
 
         tmpl = search_all($1.name);
-        if (tmpl == NULL){
+        if (tmpl == NULL) {
             sem_error2("id as function");
         }
 
-        if (tmpl->kind != FUNC){
+        if (tmpl->kind != FUNC) {
             sem_error2("id as function2");
         }
 
-        if (tmpl->params != $3.val){
+        if (tmpl->params != $3.val) {
             sem_error3(tmpl->name, tmpl->params, $3.val);
         }
 
         $$.code = mergecode($3.code,
-        makecode(O_CAL, level - tmpl->l, tmpl->a));
+            makecode(O_CAL, level - tmpl->l, tmpl->a));
     }
     | NUMBER
     {
-      $$.code = makecode(O_LIT, 0, yylval.val);
+        $$.code = makecode(O_LIT, 0, yylval.val);
     }
     | LPAR E RPAR
     {
-      $$.code = $2.code;
+        $$.code = $2.code;
     }
     ;
 
@@ -534,26 +597,26 @@ fparams : /* epsilon */
     }
     | ac_params
     {
-      $$.val = $1.val;
-      $$.code = $1.code;
+        $$.val = $1.val;
+        $$.code = $1.code;
     }
     ;
 
 ac_params : ac_params COMMA fparam
     {
-      $$.val = $1.val + 1;
-      $$.code = mergecode($1.code, $3.code);
+        $$.val = $1.val + 1;
+        $$.code = mergecode($1.code, $3.code);
     }
     | fparam
     {
-      $$.val = 1;
-      $$.code = $1.code;
+        $$.val = 1;
+        $$.code = $1.code;
     }
     ;
 
 fparam : E
     {
-      $$.code = $1.code;
+        $$.code = $1.code;
     }
     ;
 %%
