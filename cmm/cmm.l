@@ -25,8 +25,6 @@
 "endif"   { ECHO;  return ENDIF; }
 "while"   { ECHO;  return WHILE; }
 "for"     { ECHO;  return FOR; }
-"in"      { ECHO;  return IN; }
-".."      { ECHO;  return RANGE; }
 "do"      { ECHO;  return DO; }
 "read"    { ECHO;  return READ; }
 "return"  { ECHO;  return RETURN; }
