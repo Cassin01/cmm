@@ -46,6 +46,7 @@ typedef struct Codeval {
 %token READ
 %token COLEQ
 %token GE GT LE LT NE EQ
+%token AND OR NOT
 %token RETURN
 %token COLON
 %%
@@ -512,6 +513,32 @@ cond : E GT E
     {
         $$.code = mergecode(mergecode($1.code, $3.code),
         makecode(O_OPR, 0, 8));
+    }
+    | cond AND cond
+    {
+        $$.code = mergecode(mergecode($1.code, $3.code),
+        makecode(O_OPR, 0, 4));
+    }
+    | cond OR cond
+    {
+        $$.code = mergecode(mergecode($1.code, $3.code),
+        makecode(O_OPR, 0, 9));
+    }
+    | NOT cond
+    {
+        cptr *tmp;
+        int label0, label1;
+
+        label0 = makelabel();
+        label1 = makelabel();
+
+        tmp = mergecode($2.code, makecode(O_JPC, 0, label0));
+        tmp = mergecode(tmp, makecode(O_LIT, 0, 0));
+        tmp = mergecode(tmp, makecode(O_JMP, 0, label1));
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+        tmp = mergecode(tmp, makecode(O_LIT, 0, 1));
+        $$.code = mergecode(tmp, makecode(O_LAB, 0, label1));
+        $$.val = 0;
     }
     ;
 
