@@ -29,6 +29,8 @@
 "goto"    { ECHO;  return GOTO; }
 "read"    { ECHO;  return READ; }
 "return"  { ECHO;  return RETURN; }
+"switch"  { ECHO;  return SWITCH; }
+"_"       { ECHO;  return DEFAULT; }
 ":="      { ECHO;  return COLEQ; }
 ":"       { ECHO;  return COLON; }
 ">="      { ECHO;  return GE; }

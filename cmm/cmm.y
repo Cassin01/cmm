@@ -42,6 +42,7 @@ typedef struct Codeval {
 %token WHILE DO
 %token FOR
 %token GOTO
+%token SWITCH DEFAULT
 %token READ
 %token COLEQ
 %token GE GT LE LT NE EQ
@@ -279,6 +280,7 @@ st : WRITE E SEMI
     | forstmt
     | labelstmt
     | gostmt
+    | switchstmt
     | { addlist("block", BLOCK, 0, 0, 0); }
         body
     {
@@ -432,6 +434,48 @@ gostmt : GOTO ID SEMI
         $$.code = makecode(O_JMP, 0, tmpl->a);
     }
     ;
+
+switchstmt : SWITCH LBRA sbody RBRA
+    {
+        $$.code = $3.code;
+        $$.val = 0;
+    }
+    ;
+
+sbody :  sbody case
+      {
+        $$.code = mergecode($1.code, $2.code);
+        $$.val = 0;
+      }
+      | case
+      {
+        $$.code = $1.code;
+        $$.val = 0;
+      }
+      ;
+
+
+case : DEFAULT st
+      {
+        $$.code = $2.code;
+        $$.val = 0;
+      }
+      | cond st
+      {
+        cptr *tmp;
+        int label0;
+
+        label0 = makelabel();
+
+        tmp = mergecode($1.code, makecode(O_JPC, 0, label0));
+        tmp = mergecode(tmp, $2.code);
+
+        tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+        $$.code = tmp;
+        $$.val = 0;
+      }
+      ;
+
 
 
 cond : E GT E
