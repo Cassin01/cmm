@@ -325,7 +325,6 @@ ifstmt : IF cond THEN st ENDIF SEMI
         tmp = mergecode(tmp, makecode(O_JMP, 0, label1));
         tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
         tmp = mergecode(tmp, $6.code);
-
         $$.code = mergecode(tmp, makecode(O_LAB, 0, label1));
         $$.val = 0;
     }
@@ -442,41 +441,47 @@ switchstmt : SWITCH LBRA sbody RBRA
     }
     ;
 
-sbody :  sbody case
-      {
-        $$.code = mergecode($1.code, $2.code);
-        $$.val = 0;
-      }
-      | case
-      {
-        $$.code = $1.code;
-        $$.val = 0;
-      }
-      ;
-
-
-case : DEFAULT st
-      {
-        $$.code = $2.code;
-        $$.val = 0;
-      }
-      | cond st
-      {
-        cptr *tmp;
+// 一つの遷移にしたバージョン
+sbody : cond st sbody
+     {
+        cptr* tmp;
         int label0;
 
         label0 = makelabel();
 
         tmp = mergecode($1.code, makecode(O_JPC, 0, label0));
         tmp = mergecode(tmp, $2.code);
-
+        tmp = mergecode(tmp, makecode(O_JMP, 0, $3.val));
         tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
-        $$.code = tmp;
-        $$.val = 0;
-      }
-      ;
 
+        $$.code = mergecode(tmp, $3.code);
+        $$.val = $3.val;
+     }
+     | cond st
+     {
+       cptr *tmp;
+       int label0, label1;
 
+       label0 = makelabel();
+       label1 = makelabel();
+
+       tmp = mergecode($1.code, makecode(O_JPC, 0, label0));
+       tmp = mergecode(tmp, $2.code);
+
+       tmp = mergecode(tmp, makecode(O_LAB, 0, label0));
+       $$.code = mergecode(tmp, makecode(O_LAB, 0, label1));
+       $$.val = label1;
+     }
+     | DEFAULT st
+     {
+        int label0;
+
+        label0 = makelabel();
+
+        $$.code = mergecode($2.code, makecode(O_LAB, 0, label0));
+        $$.val = label0;
+     }
+     ;
 
 cond : E GT E
     {
